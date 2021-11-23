@@ -69,6 +69,7 @@ contract Collateral is PerpetualGovernance {
         marginAccounts[trader].cashBalance = marginAccounts[trader].cashBalance.add(wadAmount);
         if (marginAccounts[trader].side == LibTypes.Side.FLAT){
             LibTypes.MarginAccount storage account = marginAccounts[trader];
+            account.side = LibTypes.Side.EMPTY;
             account.size = flatAmount;
             account.entryValue = flatAmount;
             account.entrySocialLoss = flatAmount.toInt256();

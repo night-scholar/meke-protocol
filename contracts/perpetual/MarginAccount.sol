@@ -37,7 +37,7 @@ contract MarginAccount is Collateral {
         // if (marginAccounts[trader].size == 0) {
         //     return 0;
         // }
-        if (marginAccounts[trader].side == LibTypes.Side.FLAT){
+        if (marginAccounts[trader].side == LibTypes.Side.FLAT||marginAccounts[trader].side == LibTypes.Side.EMPTY){
             return 0;
         }
         LibTypes.MarginAccount memory account = marginAccounts[trader];
@@ -81,7 +81,7 @@ contract MarginAccount is Collateral {
         // if (account.size == 0) {
         //     return 0;
         // }
-        if (account.side == LibTypes.Side.FLAT){
+        if (account.side == LibTypes.Side.FLAT||account.side == LibTypes.Side.EMPTY){
             return 0;
         }
         int256 p1 = tradePrice.wmul(amount).toInt256();
@@ -123,7 +123,7 @@ contract MarginAccount is Collateral {
       * @return Value of margin.
       */
     function marginWithPrice(address trader, uint256 markPrice) internal view returns (uint256) {
-        if (marginAccounts[trader].side == LibTypes.Side.FLAT){
+        if (marginAccounts[trader].side == LibTypes.Side.FLAT||marginAccounts[trader].side == LibTypes.Side.EMPTY){
             return 0;
         }
         return marginAccounts[trader].size.wmul(markPrice).wmul(governance.initialMarginRate);
@@ -139,7 +139,7 @@ contract MarginAccount is Collateral {
       * @return Value of margin.
       */
     function maintenanceMarginWithPrice(address trader, uint256 markPrice) internal view returns (uint256) {
-        if (marginAccounts[trader].side == LibTypes.Side.FLAT){
+        if (marginAccounts[trader].side == LibTypes.Side.FLAT||marginAccounts[trader].side == LibTypes.Side.EMPTY){
             return 0;
         }
         return marginAccounts[trader].size.wmul(markPrice).wmul(governance.maintenanceMarginRate);
@@ -243,7 +243,7 @@ contract MarginAccount is Collateral {
         // if (account.size == 0) {
         //     return;
         // }
-        if (account.side == LibTypes.Side.FLAT){
+        if (account.side == LibTypes.Side.FLAT||account.side == LibTypes.Side.EMPTY){
             return;
         }
         int256 rpnl = calculatePnl(account, markPrice, account.size);
@@ -264,7 +264,8 @@ contract MarginAccount is Collateral {
       */
     function open(LibTypes.MarginAccount memory account, LibTypes.Side side, uint256 price, uint256 amount) internal {
         require(amount > 0, "open: invald amount");
-        if (account.side == LibTypes.Side.FLAT) {
+        require(account.side != LibTypes.Side.FLAT,"side can't be flat");
+        if (account.side == LibTypes.Side.EMPTY) {
             account.side = side;
             account.size = amount;
             account.entryValue = price.wmul(amount);
@@ -323,7 +324,7 @@ contract MarginAccount is Collateral {
             account.entryValue = flatAmount;
             account.size = flatAmount;
             decreaseTotalSize(account.side, amount);
-            account.side = LibTypes.Side.FLAT;
+            account.side = LibTypes.Side.EMPTY;
         }else{
             account.cashBalance = account.cashBalance.add(rpnl);
             account.entrySocialLoss = account.entrySocialLoss.wmul(account.size.sub(amount).toInt256()).wdiv(
@@ -346,7 +347,7 @@ contract MarginAccount is Collateral {
         LibTypes.MarginAccount memory account = marginAccounts[trader];
         LibTypes.Side originalSide = account.side;
         // if (account.size > 0 && account.side != side) {
-        if (account.side != LibTypes.Side.FLAT && account.side != side) {
+        if (account.side != LibTypes.Side.FLAT && account.side != LibTypes.Side.EMPTY && account.side != side) {
             closed = account.size.min(amount);
             close(account, price, closed);
             opened = opened.sub(closed);
@@ -420,6 +421,7 @@ contract MarginAccount is Collateral {
      */
     function handleSocialLoss(LibTypes.Side side, int256 loss) internal {
         require(side != LibTypes.Side.FLAT, "side can't be flat");
+        require(side != LibTypes.Side.EMPTY, "side can't be empty");
         require(totalSize(side) > 0, "size cannot be 0");
         require(loss >= 0, "loss must be positive");
 

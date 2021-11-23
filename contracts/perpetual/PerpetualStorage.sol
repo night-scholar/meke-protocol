@@ -90,7 +90,7 @@ contract PerpetualStorage {
         // return marginAccounts[trader];
 
         LibTypes.MarginAccount memory account= marginAccounts[trader];
-        if (account.side == LibTypes.Side.FLAT && account.size == flatAmount){
+        if (account.side == LibTypes.Side.EMPTY){
             account.size = account.size.sub(flatAmount);
             account.entryValue = account.entryValue.sub(flatAmount);
             account.entryFundingLoss = account.entryFundingLoss.sub(flatAmount.toInt256());
