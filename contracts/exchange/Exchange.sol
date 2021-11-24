@@ -17,7 +17,6 @@ contract Exchange {
 
     // to verify the field in order data, increase if there are incompatible update in order's data.
     uint256 public constant SUPPORTED_ORDER_VERSION = 2;
-    uint256 public gasNeed;
     IGlobalConfig public globalConfig;
 
     // referrals
@@ -175,7 +174,6 @@ contract Exchange {
         uint256 amount
     ) internal returns (uint256) {
         uint256 price = makerOrderParam.getPrice();
-        uint256 gasStart = gasleft();
         (uint256 takerOpened, uint256 makerOpened) = perpetual.tradePosition(
             takerOrderParam.trader,
             makerOrderParam.trader,
@@ -183,7 +181,6 @@ contract Exchange {
             price,
             amount
         );
-        gasNeed = gasStart - gasleft();
         // int256 referrerBonusRate = perpetual.getGovernance().referrerBonusRate;
 
         // int256 takerTradingFee;

@@ -528,7 +528,7 @@ contract Perpetual is MarginAccount, ReentrancyGuard {
         // if (account.size == 0) {
         //     return;
         // }
-        if (account.side == LibTypes.Side.FLAT||account.side == LibTypes.Side.EMPTY){
+        if (account.side == LibTypes.Side.FLAT){
             return;
         }
         LibTypes.Side originalSide = account.side;

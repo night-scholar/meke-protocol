@@ -69,7 +69,6 @@ contract Collateral is PerpetualGovernance {
         marginAccounts[trader].cashBalance = marginAccounts[trader].cashBalance.add(wadAmount);
         if (marginAccounts[trader].side == LibTypes.Side.FLAT){
             LibTypes.MarginAccount storage account = marginAccounts[trader];
-            account.side = LibTypes.Side.EMPTY;
             account.size = flatAmount;
             account.entryValue = flatAmount;
             account.entrySocialLoss = flatAmount.toInt256();
@@ -87,6 +86,9 @@ contract Collateral is PerpetualGovernance {
      */
     function withdraw(address payable trader, uint256 rawAmount) internal {
         require(rawAmount > 0, "amount must be greater than 0");
+        if (marginAccounts[trader].side == LibTypes.Side.FLAT){
+            require(marginAccounts[trader].size == flatAmount,"flat size must equal flatAmounnt");
+        }
         int256 wadAmount = toWad(rawAmount);
         require(wadAmount <= marginAccounts[trader].cashBalance, "insufficient balance");
         marginAccounts[trader].cashBalance = marginAccounts[trader].cashBalance.sub(wadAmount);

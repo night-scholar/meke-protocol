@@ -51,7 +51,7 @@ async function deployment(hre: HardhatRuntimeEnvironment): Promise<void> {
   let chainlinkAdapter = await deploy("ChainlinkAdapter",{
     from: deployer,
     log: true,
-    args:["0x0c9973e7a27d00e656B9f153348dA46CaD70d03d",3600 * 6,false]
+    args:["0x5f0423B1a6935dc5596e7A24d98532b67A0AeFd8",3600 * 6,false]
   })
 
 
