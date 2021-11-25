@@ -115,13 +115,11 @@ contract ContractReader {
         }
     }
 
-    function getMarket(address[] memory perpetualAddresses) external returns(Market memory param) {
-        for (uint256 i = 0; i < perpetualAddresses.length; i++) {
-            IPerpetual perpetual = IPerpetual(perpetualAddresses[i]);
-            (param.oraclePrice, param.oracleTime) = perpetual.fundingModule().indexPrice();
-            param.totalSize = perpetual.totalSize(LibTypes.Side.LONG);
-            param.markPrice = perpetual.markPrice();
-        }
+    function getMarket(address perpetualAddress) external returns(Market memory param) {
+        IPerpetual perpetual = IPerpetual(perpetualAddress);
+        (param.oraclePrice, param.oracleTime) = perpetual.fundingModule().indexPrice();
+        param.totalSize = perpetual.totalSize(LibTypes.Side.LONG);
+        param.markPrice = perpetual.markPrice();
     }
 
     function getTraderPosition(address perpetualAddress,address trader) public returns (TraderPosition memory params) {
