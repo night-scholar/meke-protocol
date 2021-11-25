@@ -49,6 +49,7 @@ contract ContractReader {
         uint256 oraclePrice;
         uint256 oracleTime;
         uint256 totalSize;
+        uint256 markPrice;
     }
 
     function getGovParams(address perpetualAddress) public view returns (GovParams memory params) {
@@ -111,6 +112,15 @@ contract ContractReader {
             IPerpetual perpetual = IPerpetual(perpetualAddresses[i]);
             (params[i].oraclePrice, params[i].oracleTime) = perpetual.fundingModule().indexPrice();
             params[i].totalSize = perpetual.totalSize(LibTypes.Side.LONG);
+        }
+    }
+
+    function getMarket(address[] memory perpetualAddresses) external returns(Market memory param) {
+        for (uint256 i = 0; i < perpetualAddresses.length; i++) {
+            IPerpetual perpetual = IPerpetual(perpetualAddresses[i]);
+            (param.oraclePrice, param.oracleTime) = perpetual.fundingModule().indexPrice();
+            param.totalSize = perpetual.totalSize(LibTypes.Side.LONG);
+            param.markPrice = perpetual.markPrice();
         }
     }
 
