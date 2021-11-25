@@ -5,6 +5,7 @@ pragma abicoder v2;
 
 import "../lib/LibTypes.sol";
 import "../interface/IPerpetual.sol";
+import "../interface/IFunding.sol";
 
 contract ContractReader {
     struct GovParams {
@@ -38,9 +39,10 @@ contract ContractReader {
         int256 availableMargin;
     }
 
+
     struct LiquidateTrader {
         address trader;
-        uint256 positionSize;
+        LibTypes.MarginAccount marginAccount;
     }
 
     struct Market {
@@ -84,17 +86,18 @@ contract ContractReader {
         return perpetual.getMarginAccount(trader);
     }
     
-    function TraderNeedLiquidate(address perpetualAddress,uint256 start,uint256 end) external returns(LiquidateTrader[10] memory params) {
+    function TraderNeedLiquidate(address perpetualAddress,uint256 start,uint256 end) external returns(uint256 indexPrice,LiquidateTrader[10] memory params) {
         IPerpetual perpetual = IPerpetual(perpetualAddress);
         uint256 nums = 0;
         for (uint256 i = start; i < end; i++) {
             address trader = perpetual.accountList(i);
             if (!perpetual.isSafe(trader)) {
                 params[nums].trader = trader;
-                params[nums].positionSize = perpetual.getMarginAccount(trader).size;
+                params[nums].marginAccount = perpetual.getMarginAccount(trader);
                 nums = nums + 1;
             }
         }
+        indexPrice = perpetual.markPrice();
     }
 
     function getTraderAllPosition(address[] memory perpetualAddresses, address trader) external returns(TraderPosition[10] memory params) {

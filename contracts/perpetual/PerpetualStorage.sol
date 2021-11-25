@@ -99,8 +99,4 @@ contract PerpetualStorage {
         }
         return account;
     }
-
-    function getMarginAccount2(address trader) public view returns (LibTypes.MarginAccount memory) {
-        return marginAccounts[trader];
-    }
 }
