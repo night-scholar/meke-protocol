@@ -67,7 +67,6 @@ contract Exchange {
         if (takerFilledAmount == 0){
             claimGasFee(perpetual,takerOrderParam.trader,gasFee);
         }
-        // uint256 tradingLotSize = perpetual.getGovernance().tradingLotSize;
         uint256 takerOpened;
         for (uint256 i = 0; i < makerOrderParams.length; i++) {
             if (amounts[i] == 0) {

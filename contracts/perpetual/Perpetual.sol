@@ -528,7 +528,7 @@ contract Perpetual is MarginAccount, ReentrancyGuard {
         // if (account.size == 0) {
         //     return;
         // }
-        if (account.side == LibTypes.Side.FLAT){
+        if (account.side == LibTypes.Side.FLAT||account.side == LibTypes.Side.EMPTY){
             return;
         }
         LibTypes.Side originalSide = account.side;
@@ -537,7 +537,7 @@ contract Perpetual is MarginAccount, ReentrancyGuard {
         emit UpdatePositionAccount(trader, account, totalSize(originalSide), currentMarkPrice);
     }
 
-    function setFairPrice(uint256 price) public onlyAuthorized  {
+    function setFairPrice(uint256 price) external onlyAuthorized  {
         fundingModule.setFairPrice(price);
     }
 }

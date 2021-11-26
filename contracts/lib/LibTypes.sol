@@ -3,7 +3,7 @@
 pragma solidity 0.7.6;
 
 library LibTypes {
-    enum Side {FLAT, SHORT, LONG}
+    enum Side {FLAT, EMPTY, SHORT, LONG}
 
     enum Status {NORMAL, EMERGENCY, SETTLED}
 

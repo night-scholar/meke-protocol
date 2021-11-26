@@ -38,9 +38,9 @@ contract PerpetualStorage {
     // Insurance balance
     int256 public insuranceFundBalance;
     // Total size
-    uint256[3] internal totalSizes;
+    uint256[4] internal totalSizes;
     // Socialloss
-    int256[3] internal socialLossPerContracts;
+    int256[4] internal socialLossPerContracts;
     // Scaler helps to convert decimals
     int256 internal scaler;
     // Mapping from owner to its margin account
@@ -90,7 +90,7 @@ contract PerpetualStorage {
         // return marginAccounts[trader];
 
         LibTypes.MarginAccount memory account= marginAccounts[trader];
-        if (account.side == LibTypes.Side.FLAT && account.size == flatAmount){
+        if (account.side == LibTypes.Side.EMPTY){
             account.size = account.size.sub(flatAmount);
             account.entryValue = account.entryValue.sub(flatAmount);
             account.entryFundingLoss = account.entryFundingLoss.sub(flatAmount.toInt256());
