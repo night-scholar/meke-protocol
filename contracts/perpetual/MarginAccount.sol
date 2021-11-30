@@ -123,7 +123,7 @@ contract MarginAccount is Collateral {
       * @return Value of margin.
       */
     function marginWithPrice(address trader, uint256 markPrice) internal view returns (uint256) {
-        if (marginAccounts[trader].side == LibTypes.Side.FLAT||marginAccounts[trader].side == LibTypes.Side.EMPTY){
+        if (marginAccounts[trader].side == LibTypes.Side.EMPTY){
             return 0;
         }
         return marginAccounts[trader].size.wmul(markPrice).wmul(governance.initialMarginRate);
@@ -139,7 +139,7 @@ contract MarginAccount is Collateral {
       * @return Value of margin.
       */
     function maintenanceMarginWithPrice(address trader, uint256 markPrice) internal view returns (uint256) {
-        if (marginAccounts[trader].side == LibTypes.Side.FLAT||marginAccounts[trader].side == LibTypes.Side.EMPTY){
+        if (marginAccounts[trader].side == LibTypes.Side.EMPTY){
             return 0;
         }
         return marginAccounts[trader].size.wmul(markPrice).wmul(governance.maintenanceMarginRate);
@@ -191,7 +191,7 @@ contract MarginAccount is Collateral {
         view
         returns (int256)
     {
-        if (amount == 0) {
+        if (account.side == LibTypes.Side.EMPTY||account.side == LibTypes.Side.FLAT) {
             return 0;
         }
         int256 loss = socialLossPerContract(account.side).wmul(amount.toInt256());
@@ -213,7 +213,7 @@ contract MarginAccount is Collateral {
     }
 
     function fundingLossWithAmount(LibTypes.MarginAccount memory account, uint256 amount) internal returns (int256) {
-        if (amount == 0) {
+        if (account.side == LibTypes.Side.FLAT||account.side == LibTypes.Side.EMPTY) {
             return 0;
         }
         int256 loss = fundingModule.currentAccumulatedFundingPerContract().wmul(amount.toInt256());
@@ -300,21 +300,6 @@ contract MarginAccount is Collateral {
       * @param amount  Amount of position to close.
       */
     function close(LibTypes.MarginAccount memory account, uint256 price, uint256 amount) internal returns (int256) {
-        // int256 rpnl = calculatePnl(account, price, amount);
-        // account.cashBalance = account.cashBalance.add(rpnl);
-        // account.entrySocialLoss = account.entrySocialLoss.wmul(account.size.sub(amount).toInt256()).wdiv(
-        //     account.size.toInt256()
-        // );
-        // account.entryFundingLoss = account.entryFundingLoss.wmul(account.size.sub(amount).toInt256()).wdiv(
-        //     account.size.toInt256()
-        // );
-        // account.entryValue = account.entryValue.wmul(account.size.sub(amount)).wdiv(account.size);
-        // account.size = account.size.sub(amount);
-        // decreaseTotalSize(account.side, amount);
-        // if (account.size == 0) {
-        //     account.side = LibTypes.Side.FLAT;
-        // }
-        // return rpnl;
         int256 rpnl = calculatePnl(account, price, amount);
         if (account.size == amount){
             account.cashBalance = account.cashBalance.add(rpnl);
