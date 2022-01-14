@@ -120,7 +120,7 @@ contract Perpetual is MarginAccount, ReentrancyGuard {
      */
     function decreaseCashBalance(address trader, uint256 amount) external onlyOwner {
         require(status == LibTypes.Status.EMERGENCY, "wrong perpetual status");
-        updateCashBalance(trader, amount.toInt256().neg());
+        updateCashBalance(trader, amount.toInt256().neg()); 
     }
 
     /**
@@ -349,6 +349,7 @@ contract Perpetual is MarginAccount, ReentrancyGuard {
             MarginAccount.marginBalanceWithPrice(trader, currentMarkPrice) >=
             MarginAccount.maintenanceMarginWithPrice(trader, currentMarkPrice).toInt256();
     }
+
 
     /**
      * @notice Test if a margin account is bankrupt. Bankrupt is a status indicates the margin account

@@ -94,6 +94,7 @@ contract Exchange {
             takerOpened = takerOpened.add(opened);
             filled[makerOrderHash] = makerFilledAmount.add(amounts[i]);
             takerFilledAmount = takerFilledAmount.add(amounts[i]);
+            emit MatchWithOrders(_perpetual,takerOrderParam,makerOrderParams[i],amounts[i]);
         }
         // update fair price 
         perpetual.setFairPrice(makerOrderParams[makerOrderParams.length-1].getPrice());

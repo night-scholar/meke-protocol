@@ -116,6 +116,12 @@ contract Funding is FundingGovernance {
      */
     function lastFundingRate() public view returns (int256) {
         int256 rate = lastPremiumRate();
+        // if (rate > governance.fundingDampener){
+        //     return governance.fundingDampener;
+        // }else if (rate < -governance.fundingDampener){
+        //     return -governance.fundingDampener;
+        // }
+        // return rate;
         return rate.max(governance.fundingDampener).add(rate.min(-governance.fundingDampener));
     }
 
