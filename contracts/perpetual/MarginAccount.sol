@@ -324,13 +324,13 @@ contract MarginAccount is Collateral {
         return rpnl;
     }
 
-    function trade(address trader, LibTypes.Side side, uint256 price, uint256 amount) internal returns (uint256) {
+
+    function trade(address trader, LibTypes.Side side, uint256 price, uint256 amount) internal returns (uint256,uint256) {
         // int256 rpnl;
         uint256 opened = amount;
         uint256 closed;
         LibTypes.MarginAccount memory account = marginAccounts[trader];
         LibTypes.Side originalSide = account.side;
-        // if (account.size > 0 && account.side != side) {
         if (account.side != LibTypes.Side.FLAT&&account.side != LibTypes.Side.EMPTY&& account.side != side) {
             closed = account.size.min(amount);
             close(account, price, closed);
@@ -341,7 +341,7 @@ contract MarginAccount is Collateral {
         }
         marginAccounts[trader] = account;
         emit UpdatePositionAccount(trader, account, totalSize(originalSide), price);
-        return opened;
+        return (opened,closed);
     }
 
     /**
@@ -359,7 +359,7 @@ contract MarginAccount is Collateral {
      */
     function liquidate(address liquidator, address trader, uint256 liquidationPrice, uint256 liquidationAmount)
         internal
-        returns (uint256)
+        returns (uint256,uint256)
     {
         // liquidiated trader
         LibTypes.MarginAccount memory account = marginAccounts[trader];
@@ -372,7 +372,7 @@ contract MarginAccount is Collateral {
 
         // position: trader => liquidator
         trade(trader, LibTypes.counterSide(liquidationSide), liquidationPrice, liquidationAmount);
-        uint256 opened = trade(liquidator, liquidationSide, liquidationPrice, liquidationAmount);
+        (uint256 opened,uint256 closed) = trade(liquidator, liquidationSide, liquidationPrice, liquidationAmount);
 
         // penalty: trader => liquidator, trader => insuranceFundBalance
         updateCashBalance(trader, penaltyToLiquidator.add(penaltyToFund).neg());
@@ -394,7 +394,7 @@ contract MarginAccount is Collateral {
         require(insuranceFundBalance >= 0, "negtive insurance fund");
 
         emit UpdateInsuranceFund(insuranceFundBalance);
-        return opened;
+        return (opened,closed);
     }
 
     /**

@@ -413,7 +413,7 @@ contract Perpetual is MarginAccount, ReentrancyGuard {
         liquidationAmount = liquidationAmount.ceil(governance.lotSize).min(maxAmount).min(liquidatableAmount);
         require(liquidationAmount > 0, "nothing to liquidate");
 
-        uint256 opened = MarginAccount.liquidate(msg.sender, trader, liquidationPrice, liquidationAmount);
+        (uint256 opened,uint256 closed) = MarginAccount.liquidate(msg.sender, trader, liquidationPrice, liquidationAmount);
         if (opened > 0) {
             require(availableMarginWithPrice(msg.sender, liquidationPrice) >= 0, "liquidator margin");
         } else {
@@ -433,14 +433,15 @@ contract Perpetual is MarginAccount, ReentrancyGuard {
         public
         onlyNotPaused
         onlyAuthorized
-        returns (uint256 takerOpened, uint256 makerOpened)
+        returns (uint256 takerOpened,uint256 takerClosed, uint256 makerOpened,uint256 makerClosed)
     {
         require(status != LibTypes.Status.EMERGENCY, "wrong perpetual status");
         require(side == LibTypes.Side.LONG || side == LibTypes.Side.SHORT, "side must be long or short");
         require(isValidLotSize(amount), "amount must be divisible by lotSize");
 
-        takerOpened = MarginAccount.trade(taker, side, price, amount);
-        makerOpened = MarginAccount.trade(maker, LibTypes.counterSide(side), price, amount);
+        (takerOpened,takerClosed) = MarginAccount.trade(taker, side, price, amount);
+        (makerOpened,makerClosed) = MarginAccount.trade(maker, LibTypes.counterSide(side), price, amount);
+
         require(totalSize(LibTypes.Side.LONG) == totalSize(LibTypes.Side.SHORT), "imbalanced total size");
 
         emit Trade(taker, side, price, amount);
@@ -510,7 +511,7 @@ contract Perpetual is MarginAccount, ReentrancyGuard {
         uint256 currentMarkPrice = markPrice();
         require(isSafeWithPrice(trader, currentMarkPrice), "unsafe before withdraw");
 
-        remargin(trader, currentMarkPrice);
+        // remargin(trader, currentMarkPrice);
         Collateral.withdraw(trader, rawAmount);
 
         require(isSafeWithPrice(trader, currentMarkPrice), "unsafe after withdraw");

@@ -55,6 +55,14 @@ library LibOrder {
         LibSignature.OrderSignature signature;
     }
 
+    struct OrderData{
+        uint256 index;
+        uint256 amount;
+        uint256 takerLeverage;
+        uint256 makerLeverage;
+        uint256 gasFee;
+    }
+
     /**
      * @dev Get order hash from parameters of order. Rebuild order and hash it.
      *
