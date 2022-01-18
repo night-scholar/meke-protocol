@@ -433,14 +433,14 @@ contract Perpetual is MarginAccount, ReentrancyGuard {
         public
         onlyNotPaused
         onlyAuthorized
-        returns (uint256 takerOpened,uint256 takerClosed, uint256 makerOpened,uint256 makerClosed)
+        returns (LibOrder.TradeData memory tradeData)
     {
         require(status != LibTypes.Status.EMERGENCY, "wrong perpetual status");
         require(side == LibTypes.Side.LONG || side == LibTypes.Side.SHORT, "side must be long or short");
         require(isValidLotSize(amount), "amount must be divisible by lotSize");
-
-        (takerOpened,takerClosed) = MarginAccount.trade(taker, side, price, amount);
-        (makerOpened,makerClosed) = MarginAccount.trade(maker, LibTypes.counterSide(side), price, amount);
+        
+        (tradeData.takerOpened,tradeData.takerClosed,tradeData.takerOriginalSize) = MarginAccount.trade(taker, side, price, amount);
+        (tradeData.makerOpened,tradeData.makerClosed,tradeData.makerOriginalSize) = MarginAccount.trade(maker, LibTypes.counterSide(side), price, amount);
 
         require(totalSize(LibTypes.Side.LONG) == totalSize(LibTypes.Side.SHORT), "imbalanced total size");
 

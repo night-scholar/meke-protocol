@@ -18,6 +18,8 @@ contract Exchange {
     // to verify the field in order data, increase if there are incompatible update in order's data.
     uint256 public constant SUPPORTED_ORDER_VERSION = 2;
     IGlobalConfig public globalConfig;
+    uint256 private MAX_DECIMALS = 18;
+    uint256 private scaler ;
 
     // referrals
     mapping(address => address) public referrals;
@@ -36,8 +38,9 @@ contract Exchange {
     event ActivateReferral(address indexed referrer, address indexed referree);
     event ClaimReferralBonus(address indexed referrer,uint256,int256);
 
-    constructor(address _globalConfig) {
+    constructor(address _globalConfig,uint256 _decimals) {
         globalConfig = IGlobalConfig(_globalConfig);
+        scaler = 10**(MAX_DECIMALS - _decimals);
     }
 
     // /**
@@ -52,8 +55,8 @@ contract Exchange {
         LibOrder.OrderParam memory takerOrderParam,
         LibOrder.OrderParam[] memory makerOrderParams,
         address _perpetual,
-        // uint256[] memory amounts,
-        LibOrder.OrderData[] memory orderDatas
+        LibOrder.OrderData[] memory orderDatas,
+        uint256 takerGasFee
     ) external {
         require(globalConfig.brokers(msg.sender), "unauthorized broker");
         // require(dwgAmounts.length > 1 && makerOrderParams.length == dwgAmounts.length-1, "no makers to match");
@@ -65,10 +68,13 @@ contract Exchange {
         bytes32 takerOrderHash = validateOrderParam(perpetual, takerOrderParam,"-1");
         uint256 takerFilledAmount = filled[takerOrderHash];
 
-        if (takerFilledAmount == 0){
-            claimGasFee(perpetual,takerOrderParam.trader,orderDatas[orderDatas.length-1].gasFee);
-        }
+        // if (takerFilledAmount == 0){
+        //     claimGasFee(perpetual,takerOrderParam.trader,takerGasFee);
+        // }else{
+        //     takerGasFee = 0;
+        // }
         uint256 takerOpened;
+        
         for (uint256 i = 0; i < makerOrderParams.length; i++) {
             if (orderDatas[i].amount == 0) {
                 continue;
@@ -83,15 +89,17 @@ contract Exchange {
 
             bytes32 makerOrderHash = validateOrderParam(perpetual, makerOrderParams[i],uint2str(i));
             uint256 makerFilledAmount = filled[makerOrderHash];
-            if (makerFilledAmount == 0){
-                claimGasFee(perpetual,makerOrderParams[i].trader,orderDatas[i].gasFee);
-            }
+            // if (makerFilledAmount == 0){
+            //     claimGasFee(perpetual,makerOrderParams[i].trader,orderDatas[i].gasFee);
+            // }else{
+            //     orderDatas[i].gasFee = 0;
+            // }
 
             require(orderDatas[i].amount <= takerOrderParam.amount.sub(takerFilledAmount), "-1:taker overfilled");
             require(orderDatas[i].amount <= makerOrderParams[i].amount.sub(makerFilledAmount),  mergeS1AndS2ReturnString(uint2str(i),":maker overfilled"));
             require(orderDatas[i].amount.mod(perpetual.getGovernance().tradingLotSize) == 0, "amount must be divisible by tradingLotSize");
 
-            uint256 opened = fillOrder(perpetual, takerOrderParam, makerOrderParams[i], orderDatas[i]);
+            uint256 opened = fillOrder(perpetual, takerOrderParam, makerOrderParams[i], orderDatas[i],takerGasFee);
 
             takerOpened = takerOpened.add(opened);
             filled[makerOrderHash] = makerFilledAmount.add(orderDatas[i].amount);
@@ -99,11 +107,11 @@ contract Exchange {
             emit MatchWithOrders(_perpetual,takerOrderParam,makerOrderParams[i],orderDatas[i].amount);
         }
         // update fair price 
-        perpetual.setFairPrice(makerOrderParams[makerOrderParams.length-1].getPrice());
+        // perpetual.setFairPrice(makerOrderParams[makerOrderParams.length-1].getPrice());
 
         // all trades done, check taker safe.
         if (takerOpened > 0) {
-            require(perpetual.isIMSafe(takerOrderParam.trader), "-1:taker initial margin unsafe");
+            // require(perpetual.isIMSafe(takerOrderParam.trader), "-1:taker initial margin unsafe");
         } else {
             require(perpetual.isSafe(takerOrderParam.trader), "-1:taker unsafe");
         }
@@ -172,11 +180,12 @@ contract Exchange {
         IPerpetual perpetual,
         LibOrder.OrderParam memory takerOrderParam,
         LibOrder.OrderParam memory makerOrderParam,
-        LibOrder.OrderData memory orderData
+        LibOrder.OrderData memory orderData,
+        uint256 takerGasFee
     ) internal returns (uint256) {
         uint256 price = makerOrderParam.getPrice();
         
-        (uint256 takerOpened, uint256 takerClosed,uint256 makerOpened,uint256 makerClosed) = perpetual.tradePosition(
+        (LibOrder.TradeData memory tradeData) = perpetual.tradePosition(
             takerOrderParam.trader,
             makerOrderParam.trader,
             takerOrderParam.side(),
@@ -187,8 +196,6 @@ contract Exchange {
         int256 takerTradingFee = orderData.amount.wmul(price).toInt256().wmul(takerOrderParam.takerFeeRate());
         int256 makerTradingFee = orderData.amount.wmul(price).toInt256().wmul(makerOrderParam.makerFeeRate());
         
-        dealOrderData(takerOrderParam.trader,perpetual,takerTradingFee.add(orderData.gasFee.toInt256()),takerOpened,takerClosed,price,orderData.takerLeverage);
-        dealOrderData(makerOrderParam.trader,perpetual,makerTradingFee.add(orderData.gasFee.toInt256()),makerOpened,makerClosed,price,orderData.makerLeverage);
         // check if taker is activated
         if (isActivtedReferral(takerOrderParam.trader)) {
             // referere bonus
@@ -215,15 +222,18 @@ contract Exchange {
             claimTradingFee(perpetual, makerOrderParam.trader, makerTradingFee);
         }
 
-        if (makerOpened > 0) {
-            require(perpetual.isIMSafe(makerOrderParam.trader), mergeS1AndS2ReturnString(uint2str(orderData.index),":maker initial margin unsafe"));
+        dealOrderData(takerOrderParam.trader,perpetual,takerTradingFee.add(takerGasFee.toInt256()),tradeData.takerOpened,tradeData.takerClosed,tradeData.takerOriginalSize,price,orderData.takerLeverage);
+        dealOrderData(makerOrderParam.trader,perpetual,makerTradingFee.add(orderData.gasFee.toInt256()),tradeData.makerOpened,tradeData.makerClosed,tradeData.makerOriginalSize,price,orderData.makerLeverage);
+
+        if (tradeData.makerOpened > 0) {
+            // require(perpetual.isIMSafe(makerOrderParam.trader), mergeS1AndS2ReturnString(uint2str(orderData.index),":maker initial margin unsafe"));
         } else {
             require(perpetual.isSafe(makerOrderParam.trader), mergeS1AndS2ReturnString(uint2str(orderData.index),":maker unsafe"));
         }
 
         emit MatchWithOrders(address(perpetual), takerOrderParam, makerOrderParam, orderData.amount);
 
-        return takerOpened;
+        return tradeData.takerOpened;
     }
     /**
      * @dev Check prices are meet.
@@ -408,26 +418,26 @@ contract Exchange {
     //反向仓，退所有钱，存当前杠杆保证金,withdrawAmount = cashBlance, depositAmount = amount*price/leverage
     //计算用户开仓之后的保证金余额
     //计算用户需要的实际保证金数量,保证金+gasFee+手续费
-    function dealOrderData(address trader,IPerpetual perpetual,int256 fee,uint256 opened,uint256 closed,uint256 price,uint256 leverage) internal {
+    function dealOrderData(address trader,IPerpetual perpetual,int256 fee,uint256 opened,uint256 closed,uint256 originalSize, uint256 price,uint256 leverage) internal {
         int256 traderMarginBalance = perpetual.marginBalance(trader);
         int256 traderMinimumMarginBalance;
-        // LibTypes.MarginAccount memory account = marginAccounts[trader];
         if (opened > 0){
             //反向仓
             if (closed > 0){
                 traderMinimumMarginBalance = opened.wmul(price).wdiv(leverage).add(fee.toUint256()).toInt256();
             }else {
                 //加仓
-                traderMinimumMarginBalance = traderMarginBalance.toUint256().add(opened.wmul(price).wdiv(leverage)).add(fee.toUint256()).toInt256();
+                traderMinimumMarginBalance = traderMarginBalance.add(opened.wmul(price).wdiv(leverage).toInt256()).add(fee);
             }
         }else{
             //减仓
-            traderMinimumMarginBalance = traderMarginBalance.toUint256().sub(opened.wmul(price).wdiv(leverage)).add(fee.toUint256()).toInt256();
+            traderMinimumMarginBalance = (originalSize.sub(closed)).wdiv(originalSize).wmul(traderMarginBalance.toUint256()).toInt256();
         }
+
         if (traderMarginBalance > traderMinimumMarginBalance){
-            perpetual.withdrawFor(payable(trader), traderMarginBalance.sub(traderMinimumMarginBalance).toUint256());
+            perpetual.withdrawFor(payable(trader), traderMarginBalance.sub(traderMinimumMarginBalance).toUint256().div(scaler));
         }else if (traderMarginBalance < traderMinimumMarginBalance){
-            perpetual.depositFor(trader, traderMinimumMarginBalance.sub(traderMarginBalance).toUint256());
+            perpetual.depositFor(trader, traderMinimumMarginBalance.sub(traderMarginBalance).toUint256().div(scaler));
         }
     }
 
@@ -453,5 +463,23 @@ contract Exchange {
             _i /= 10;
         }
         return string(bstr);
+    }
+
+
+    function toAsciiString(address x) internal pure returns (string memory) {
+        bytes memory s = new bytes(40);
+        for (uint i = 0; i < 20; i++) {
+            bytes1 b = bytes1(uint8(uint(uint160(x)) / (2**(8*(19 - i)))));
+            bytes1 hi = bytes1(uint8(b) / 16);
+            bytes1 lo = bytes1(uint8(b) - 16 * uint8(hi));
+            s[2*i] = char(hi);
+            s[2*i+1] = char(lo);            
+        }
+        return string(s);
+    }
+
+    function char(bytes1 b) internal pure returns (bytes1 c) {
+        if (uint8(b) < 10) return bytes1(uint8(b) + 0x30);
+        else return bytes1(uint8(b) + 0x57);
     }
 }

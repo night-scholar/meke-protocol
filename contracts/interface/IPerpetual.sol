@@ -6,6 +6,7 @@ pragma abicoder v2;
 import "../interface/IFunding.sol";
 
 import "../lib/LibTypes.sol";
+import "../lib/LibOrder.sol";
 
 
 interface IPerpetual {
@@ -61,7 +62,7 @@ interface IPerpetual {
         LibTypes.Side side,
         uint256 price,
         uint256 amount
-    ) external returns (uint256, uint256,uint256,uint256);
+    ) external returns (LibOrder.TradeData memory);
 
     function transferCashBalance(
         address from,

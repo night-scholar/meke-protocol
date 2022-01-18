@@ -63,6 +63,15 @@ library LibOrder {
         uint256 gasFee;
     }
 
+    struct TradeData{
+        uint256 takerOpened;
+        uint256 takerClosed;
+        uint256 makerOpened;
+        uint256 makerClosed;
+        uint256 takerOriginalSize;
+        uint256 makerOriginalSize;
+    }
+
     /**
      * @dev Get order hash from parameters of order. Rebuild order and hash it.
      *

@@ -325,12 +325,13 @@ contract MarginAccount is Collateral {
     }
 
 
-    function trade(address trader, LibTypes.Side side, uint256 price, uint256 amount) internal returns (uint256,uint256) {
+    function trade(address trader, LibTypes.Side side, uint256 price, uint256 amount) internal returns (uint256,uint256,uint256) {
         // int256 rpnl;
         uint256 opened = amount;
         uint256 closed;
         LibTypes.MarginAccount memory account = marginAccounts[trader];
         LibTypes.Side originalSide = account.side;
+        uint256 originalSize = account.size;
         if (account.side != LibTypes.Side.FLAT&&account.side != LibTypes.Side.EMPTY&& account.side != side) {
             closed = account.size.min(amount);
             close(account, price, closed);
@@ -341,7 +342,7 @@ contract MarginAccount is Collateral {
         }
         marginAccounts[trader] = account;
         emit UpdatePositionAccount(trader, account, totalSize(originalSide), price);
-        return (opened,closed);
+        return (opened,closed,originalSize);
     }
 
     /**
@@ -372,7 +373,7 @@ contract MarginAccount is Collateral {
 
         // position: trader => liquidator
         trade(trader, LibTypes.counterSide(liquidationSide), liquidationPrice, liquidationAmount);
-        (uint256 opened,uint256 closed) = trade(liquidator, liquidationSide, liquidationPrice, liquidationAmount);
+        (uint256 opened,uint256 closed,uint256 originalSize) = trade(liquidator, liquidationSide, liquidationPrice, liquidationAmount);
 
         // penalty: trader => liquidator, trader => insuranceFundBalance
         updateCashBalance(trader, penaltyToLiquidator.add(penaltyToFund).neg());
