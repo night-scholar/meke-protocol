@@ -264,7 +264,7 @@ contract MarginAccount is Collateral {
       */
     function open(LibTypes.MarginAccount memory account, LibTypes.Side side, uint256 price, uint256 amount) internal {
         require(amount > 0, "open: invald amount");
-        if (account.side == LibTypes.Side.EMPTY) {
+        if (account.side == LibTypes.Side.EMPTY||account.side == LibTypes.Side.FLAT) {
             account.side = side;
             account.size = amount;
             account.entryValue = price.wmul(amount);

@@ -515,7 +515,7 @@ contract Perpetual is MarginAccount, ReentrancyGuard {
         Collateral.withdraw(trader, rawAmount);
 
         require(isSafeWithPrice(trader, currentMarkPrice), "unsafe after withdraw");
-        require(availableMarginWithPrice(trader, currentMarkPrice) >= 0, "withdraw margin");
+        // require(availableMarginWithPrice(trader, currentMarkPrice) >= 0, "withdraw margin");
     }
 
     /**

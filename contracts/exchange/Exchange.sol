@@ -68,11 +68,9 @@ contract Exchange {
         bytes32 takerOrderHash = validateOrderParam(perpetual, takerOrderParam,"-1");
         uint256 takerFilledAmount = filled[takerOrderHash];
 
-        // if (takerFilledAmount == 0){
-        //     claimGasFee(perpetual,takerOrderParam.trader,takerGasFee);
-        // }else{
-        //     takerGasFee = 0;
-        // }
+        if (takerFilledAmount != 0){
+            takerGasFee = 0;
+        }
         uint256 takerOpened;
         
         for (uint256 i = 0; i < makerOrderParams.length; i++) {
@@ -89,11 +87,9 @@ contract Exchange {
 
             bytes32 makerOrderHash = validateOrderParam(perpetual, makerOrderParams[i],uint2str(i));
             uint256 makerFilledAmount = filled[makerOrderHash];
-            // if (makerFilledAmount == 0){
-            //     claimGasFee(perpetual,makerOrderParams[i].trader,orderDatas[i].gasFee);
-            // }else{
-            //     orderDatas[i].gasFee = 0;
-            // }
+            if (makerFilledAmount != 0){
+                orderDatas[i].gasFee = 0;
+            }
 
             require(orderDatas[i].amount <= takerOrderParam.amount.sub(takerFilledAmount), "-1:taker overfilled");
             require(orderDatas[i].amount <= makerOrderParams[i].amount.sub(makerFilledAmount),  mergeS1AndS2ReturnString(uint2str(i),":maker overfilled"));
@@ -107,15 +103,16 @@ contract Exchange {
             emit MatchWithOrders(_perpetual,takerOrderParam,makerOrderParams[i],orderDatas[i].amount);
         }
         // update fair price 
-        // perpetual.setFairPrice(makerOrderParams[makerOrderParams.length-1].getPrice());
+        perpetual.setFairPrice(makerOrderParams[makerOrderParams.length-1].getPrice());
 
         // all trades done, check taker safe.
-        if (takerOpened > 0) {
-            // require(perpetual.isIMSafe(takerOrderParam.trader), "-1:taker initial margin unsafe");
-        } else {
-            require(perpetual.isSafe(takerOrderParam.trader), "-1:taker unsafe");
-        }
-        require(perpetual.isSafe(msg.sender), "broker unsafe");
+        require(perpetual.isSafe(takerOrderParam.trader), "-1:taker unsafe");
+        // if (takerOpened > 0) {
+        //     // require(perpetual.isIMSafe(takerOrderParam.trader), "-1:taker initial margin unsafe");
+        // } else {
+        //     require(perpetual.isSafe(takerOrderParam.trader), "-1:taker unsafe");
+        // }
+        // require(perpetual.isSafe(msg.sender), "broker unsafe");
 
         filled[takerOrderHash] = takerFilledAmount;
     }
@@ -195,7 +192,8 @@ contract Exchange {
 
         int256 takerTradingFee = orderData.amount.wmul(price).toInt256().wmul(takerOrderParam.takerFeeRate());
         int256 makerTradingFee = orderData.amount.wmul(price).toInt256().wmul(makerOrderParam.makerFeeRate());
-        
+        claimGasFee(perpetual,takerOrderParam.trader,takerGasFee);
+        claimGasFee(perpetual,makerOrderParam.trader,orderData.gasFee);
         // check if taker is activated
         if (isActivtedReferral(takerOrderParam.trader)) {
             // referere bonus
@@ -225,11 +223,14 @@ contract Exchange {
         dealOrderData(takerOrderParam.trader,perpetual,takerTradingFee.add(takerGasFee.toInt256()),tradeData.takerOpened,tradeData.takerClosed,tradeData.takerOriginalSize,price,orderData.takerLeverage);
         dealOrderData(makerOrderParam.trader,perpetual,makerTradingFee.add(orderData.gasFee.toInt256()),tradeData.makerOpened,tradeData.makerClosed,tradeData.makerOriginalSize,price,orderData.makerLeverage);
 
-        if (tradeData.makerOpened > 0) {
-            // require(perpetual.isIMSafe(makerOrderParam.trader), mergeS1AndS2ReturnString(uint2str(orderData.index),":maker initial margin unsafe"));
-        } else {
-            require(perpetual.isSafe(makerOrderParam.trader), mergeS1AndS2ReturnString(uint2str(orderData.index),":maker unsafe"));
-        }
+
+        require(perpetual.isSafe(makerOrderParam.trader), mergeS1AndS2ReturnString(uint2str(orderData.index),":maker unsafe"));
+       
+        // if (tradeData.makerOpened > 0) {
+        //     // require(perpetual.isIMSafe(makerOrderParam.trader), mergeS1AndS2ReturnString(uint2str(orderData.index),":maker initial margin unsafe"));
+        // } else {
+        //     require(perpetual.isSafe(makerOrderParam.trader), mergeS1AndS2ReturnString(uint2str(orderData.index),":maker unsafe"));
+        // }
 
         emit MatchWithOrders(address(perpetual), takerOrderParam, makerOrderParam, orderData.amount);
 
@@ -420,24 +421,25 @@ contract Exchange {
     //计算用户需要的实际保证金数量,保证金+gasFee+手续费
     function dealOrderData(address trader,IPerpetual perpetual,int256 fee,uint256 opened,uint256 closed,uint256 originalSize, uint256 price,uint256 leverage) internal {
         int256 traderMarginBalance = perpetual.marginBalance(trader);
-        int256 traderMinimumMarginBalance;
+        int256 traderMinimumBalance;
+
         if (opened > 0){
             //反向仓
             if (closed > 0){
-                traderMinimumMarginBalance = opened.wmul(price).wdiv(leverage).add(fee.toUint256()).toInt256();
+                traderMinimumBalance = opened.wmul(price).wdiv(leverage).toInt256().add(fee);
             }else {
                 //加仓
-                traderMinimumMarginBalance = traderMarginBalance.add(opened.wmul(price).wdiv(leverage).toInt256()).add(fee);
+                traderMinimumBalance = traderMarginBalance.add(opened.wmul(price).wdiv(leverage).toInt256()).add(fee);
             }
         }else{
             //减仓
-            traderMinimumMarginBalance = (originalSize.sub(closed)).wdiv(originalSize).wmul(traderMarginBalance.toUint256()).toInt256();
+            traderMinimumBalance = (originalSize.sub(closed)).wdiv(originalSize).wmul(traderMarginBalance.toUint256()).toInt256().add(fee);
         }
 
-        if (traderMarginBalance > traderMinimumMarginBalance){
-            perpetual.withdrawFor(payable(trader), traderMarginBalance.sub(traderMinimumMarginBalance).toUint256().div(scaler));
-        }else if (traderMarginBalance < traderMinimumMarginBalance){
-            perpetual.depositFor(trader, traderMinimumMarginBalance.sub(traderMarginBalance).toUint256().div(scaler));
+        if (traderMarginBalance > traderMinimumBalance){
+            perpetual.withdrawFor(payable(trader), traderMarginBalance.sub(traderMinimumBalance).toUint256().div(scaler));
+        }else if (traderMarginBalance < traderMinimumBalance){
+            perpetual.depositFor(trader, traderMinimumBalance.sub(traderMarginBalance).toUint256().div(scaler));
         }
     }
 

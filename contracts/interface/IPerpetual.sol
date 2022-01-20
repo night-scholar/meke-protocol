@@ -86,5 +86,5 @@ interface IPerpetual {
 
     function isValidTradingLotSize(uint256 amount) external view returns (bool);
 
-    function setFairPrice(uint256 price) external returns(uint256);
+    function setFairPrice(uint256 price) external;
 }
