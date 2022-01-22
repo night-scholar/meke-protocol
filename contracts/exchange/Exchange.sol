@@ -424,15 +424,15 @@ contract Exchange {
         int256 traderMinimumBalance;
 
         if (opened > 0){
-            //反向仓
+            //revert position
             if (closed > 0){
                 traderMinimumBalance = opened.wmul(price).wdiv(leverage).toInt256().add(fee);
             }else {
-                //加仓
+                //add position
                 traderMinimumBalance = traderMarginBalance.add(opened.wmul(price).wdiv(leverage).toInt256()).add(fee);
             }
         }else{
-            //减仓
+            //sub position
             traderMinimumBalance = (originalSize.sub(closed)).wdiv(originalSize).wmul(traderMarginBalance.toUint256()).toInt256().add(fee);
         }
 
