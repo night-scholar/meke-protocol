@@ -424,16 +424,24 @@ contract Exchange {
         int256 traderMinimumBalance;
 
         if (opened > 0){
-            //revert position
             if (closed > 0){
-                traderMinimumBalance = opened.wmul(price).wdiv(leverage).toInt256().add(fee);
+                //revert position
+                if (traderMarginBalance >= 0){
+                    traderMinimumBalance = opened.wmul(price).wdiv(leverage).toInt256();
+                }else{
+                    traderMinimumBalance = opened.wmul(price).wdiv(leverage).toInt256().sub(traderMarginBalance);
+                }
             }else {
                 //add position
                 traderMinimumBalance = traderMarginBalance.add(opened.wmul(price).wdiv(leverage).toInt256()).add(fee);
             }
         }else{
             //sub position
-            traderMinimumBalance = (originalSize.sub(closed)).wdiv(originalSize).wmul(traderMarginBalance.toUint256()).toInt256().add(fee);
+            if (originalSize.sub(closed) != 0){
+                traderMinimumBalance = (originalSize.sub(closed)).wdiv(originalSize).wmul(traderMarginBalance.toUint256()).toInt256().add(fee);
+            }else{
+                traderMinimumBalance = 0;
+            }
         }
 
         if (traderMarginBalance > traderMinimumBalance){
