@@ -192,6 +192,10 @@ contract Exchange {
 
         int256 takerTradingFee = orderData.amount.wmul(price).toInt256().wmul(takerOrderParam.takerFeeRate());
         int256 makerTradingFee = orderData.amount.wmul(price).toInt256().wmul(makerOrderParam.makerFeeRate());
+        
+        dealOrderData(takerOrderParam.trader,perpetual,takerTradingFee.add(takerGasFee.toInt256()),tradeData.takerOpened,tradeData.takerClosed,tradeData.takerOriginalSize,price,orderData.takerLeverage);
+        dealOrderData(makerOrderParam.trader,perpetual,makerTradingFee.add(orderData.gasFee.toInt256()),tradeData.makerOpened,tradeData.makerClosed,tradeData.makerOriginalSize,price,orderData.makerLeverage);
+       
         claimGasFee(perpetual,takerOrderParam.trader,takerGasFee);
         claimGasFee(perpetual,makerOrderParam.trader,orderData.gasFee);
         // check if taker is activated
@@ -219,9 +223,6 @@ contract Exchange {
         } else {
             claimTradingFee(perpetual, makerOrderParam.trader, makerTradingFee);
         }
-
-        dealOrderData(takerOrderParam.trader,perpetual,takerTradingFee.add(takerGasFee.toInt256()),tradeData.takerOpened,tradeData.takerClosed,tradeData.takerOriginalSize,price,orderData.takerLeverage);
-        dealOrderData(makerOrderParam.trader,perpetual,makerTradingFee.add(orderData.gasFee.toInt256()),tradeData.makerOpened,tradeData.makerClosed,tradeData.makerOriginalSize,price,orderData.makerLeverage);
 
 
         require(perpetual.isSafe(makerOrderParam.trader), mergeS1AndS2ReturnString(uint2str(orderData.index),":maker unsafe"));
@@ -413,12 +414,6 @@ contract Exchange {
         claimDevFee(perpetual, trader, price, openedAmount, closedAmount, rate);
     }
 
-
-    //加仓，直接存钱不退钱,depositAmount = amount*price/leverage+gasFee+Fee 
-    //减仓，杠杆不变，只退钱不存钱,withdrawAmount = cashBalance - ((amount原-amount)*price/leverage)  
-    //反向仓，退所有钱，存当前杠杆保证金,withdrawAmount = cashBlance, depositAmount = amount*price/leverage
-    //计算用户开仓之后的保证金余额
-    //计算用户需要的实际保证金数量,保证金+gasFee+手续费
     function dealOrderData(address trader,IPerpetual perpetual,int256 fee,uint256 opened,uint256 closed,uint256 originalSize, uint256 price,uint256 leverage) internal {
         int256 traderMarginBalance = perpetual.marginBalance(trader);
         int256 traderMinimumBalance;
@@ -426,22 +421,14 @@ contract Exchange {
         if (opened > 0){
             if (closed > 0){
                 //revert position
-                if (traderMarginBalance >= 0){
-                    traderMinimumBalance = opened.wmul(price).wdiv(leverage).toInt256();
-                }else{
-                    traderMinimumBalance = opened.wmul(price).wdiv(leverage).toInt256().sub(traderMarginBalance);
-                }
+                traderMinimumBalance = opened.wmul(price).wdiv(leverage).toInt256().add(fee);
             }else {
                 //add position
                 traderMinimumBalance = traderMarginBalance.add(opened.wmul(price).wdiv(leverage).toInt256()).add(fee);
             }
         }else{
             //sub position
-            if (originalSize.sub(closed) != 0){
-                traderMinimumBalance = (originalSize.sub(closed)).wdiv(originalSize).wmul(traderMarginBalance.toUint256()).toInt256().add(fee);
-            }else{
-                traderMinimumBalance = 0;
-            }
+            traderMinimumBalance = (originalSize.sub(closed)).wdiv(originalSize).wmul(traderMarginBalance.toUint256()).toInt256().add(fee);
         }
 
         if (traderMarginBalance > traderMinimumBalance){
@@ -452,7 +439,6 @@ contract Exchange {
     }
 
     function mergeS1AndS2ReturnString(string memory s1,string memory s2) pure internal returns(string memory) {
-
         return string(abi.encodePacked(s1, s2));
     }
        
