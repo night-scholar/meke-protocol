@@ -18,8 +18,6 @@ contract Exchange {
     // to verify the field in order data, increase if there are incompatible update in order's data.
     uint256 public constant SUPPORTED_ORDER_VERSION = 2;
     IGlobalConfig public globalConfig;
-    uint256 private MAX_DECIMALS = 18;
-    uint256 private scaler ;
 
     // referrals
     mapping(address => address) public referrals;
@@ -38,9 +36,8 @@ contract Exchange {
     event ActivateReferral(address indexed referrer, address indexed referree);
     event ClaimReferralBonus(address indexed referrer,uint256,int256);
 
-    constructor(address _globalConfig,uint256 _decimals) {
+    constructor(address _globalConfig) {
         globalConfig = IGlobalConfig(_globalConfig);
-        scaler = 10**(MAX_DECIMALS - _decimals);
     }
 
     // /**
@@ -432,9 +429,9 @@ contract Exchange {
         }
 
         if (traderMarginBalance > traderMinimumBalance){
-            perpetual.withdrawFor(payable(trader), traderMarginBalance.sub(traderMinimumBalance).toUint256().div(scaler));
+            perpetual.withdrawFor(payable(trader), (traderMarginBalance.sub(traderMinimumBalance)).div(perpetual.scaler()).toUint256());
         }else if (traderMarginBalance < traderMinimumBalance){
-            perpetual.depositFor(trader, traderMinimumBalance.sub(traderMarginBalance).toUint256().div(scaler));
+            perpetual.depositFor(trader, (traderMinimumBalance.sub(traderMarginBalance)).div(perpetual.scaler()).toUint256());
         }
     }
 

@@ -395,8 +395,7 @@ contract Perpetual is MarginAccount, ReentrancyGuard {
         address trader,
         uint256 maxAmount
     )
-        public
-        payable
+        external
         onlyNotPaused
         returns (uint256, uint256)
     {
@@ -415,7 +414,7 @@ contract Perpetual is MarginAccount, ReentrancyGuard {
         require(liquidationAmount > 0, "nothing to liquidate");
 
         (uint256 opened,uint256 closed) = MarginAccount.liquidate(msg.sender, trader, liquidationPrice, liquidationAmount);
-        depositImplementation(msg.sender,liquidationPrice.wmul(liquidationAmount).wmul(governance.initialMarginRate));
+        depositImplementation(msg.sender,toCollateral(liquidationPrice.wmul(liquidationAmount).wmul(governance.initialMarginRate).toInt256()));
         if (opened > 0) {
             require(availableMarginWithPrice(msg.sender, liquidationPrice) >= 0, "liquidator margin");
         } else {

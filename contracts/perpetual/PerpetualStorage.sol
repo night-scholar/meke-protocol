@@ -42,7 +42,7 @@ contract PerpetualStorage {
     // Socialloss
     int256[4] internal socialLossPerContracts;
     // Scaler helps to convert decimals
-    int256 internal scaler;
+    int256 public scaler;
     // Mapping from owner to its margin account
     mapping (address => LibTypes.MarginAccount) internal marginAccounts;
 

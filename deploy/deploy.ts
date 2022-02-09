@@ -29,7 +29,7 @@ async function deployment(hre: HardhatRuntimeEnvironment): Promise<void> {
   let exchange = await deploy("Exchange", {
     from: deployer,
     log: true,
-    args: [globalConfig.address,6]
+    args: [globalConfig.address]
   })
 
   // mock collateral token，6代表token的精度

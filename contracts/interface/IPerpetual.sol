@@ -56,6 +56,8 @@ interface IPerpetual {
 
     function marginBalance(address trader) external returns (int256);
 
+    function scaler() external returns (int256);
+
     function tradePosition(
         address taker,
         address maker,
